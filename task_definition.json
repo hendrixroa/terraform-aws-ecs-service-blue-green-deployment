@@ -5,8 +5,10 @@
     "name": "log_router",
     "firelensConfiguration": {
       "type": "fluentbit",
-      "config-file-type": "file",
-      "config-file-value": "/extra.conf"
+      "options": {
+        "config-file-type": "file",
+        "config-file-value": "/fluent-bit/configs/parse-json.conf"
+      }
     },
     "memoryReservation": 50
   },
