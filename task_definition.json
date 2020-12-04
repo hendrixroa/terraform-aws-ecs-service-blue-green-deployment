@@ -1,0 +1,61 @@
+[
+  {
+    "essential": true,
+    "image": "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest",
+    "name": "log_router",
+    "firelensConfiguration": {
+      "type": "fluentbit",
+      "config-file-type": "file",
+      "config-file-value": "/extra.conf"
+    },
+    "memoryReservation": 50
+  },
+  {
+    "essential": true,
+    "image": "${ecr_image_url}",
+    "name": "${name}",
+    "portMappings": [
+      {
+        "containerPort": ${port},
+      "hostPort": ${port}
+    }
+    ],
+    "logConfiguration": {
+      "logDriver":"awsfirelens",
+      "options": {
+        "Name": "es",
+        "Host": "${es_url}",
+        "Port": "443",
+        "Index": "${name}",
+        "Type": "${name}_type",
+        "Aws_Auth": "On",
+        "Aws_Region": "${region}",
+        "tls": "On"
+      }
+    },
+    "secrets": [
+      {
+        "name": "${secrets_name}",
+        "valueFrom": "${secrets_value_arn}"
+      }
+    ],
+    "environment": [
+      {
+        "name": "DATABASE_LOG_LEVEL",
+        "value": "${database_log_level}"
+      },
+      {
+        "name": "APP",
+        "value": "${name}"
+      },
+      {
+        "name": "LOG_LEVEL",
+        "value": "${log_level}"
+      },
+      {
+        "name": "PORT",
+        "value": "${port}"
+      }
+    ]
+  }
+]
