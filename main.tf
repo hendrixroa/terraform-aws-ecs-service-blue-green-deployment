@@ -63,7 +63,7 @@ data "template_file" "main" {
 
   vars = {
     ecr_image_url      = var.ecr_image_url
-    name               = var.name
+    name               = lower(var.name)
     port               = var.port
     region             = var.region
     secrets_name       = var.secrets_name
