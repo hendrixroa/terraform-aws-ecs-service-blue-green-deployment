@@ -28,8 +28,8 @@
         "Name": "es",
         "Host": "${es_url}",
         "Port": "443",
-        "Index": "${name}",
-        "Type": "${name}_type",
+        "Index": "${name_index_log}",
+        "Type": "${name_index_log}_type",
         "Aws_Auth": "On",
         "Aws_Region": "${region}",
         "tls": "On"
