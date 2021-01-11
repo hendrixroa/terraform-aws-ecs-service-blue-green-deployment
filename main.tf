@@ -51,27 +51,87 @@ resource "aws_ecs_task_definition" "main" {
   task_role_arn            = var.roleArn
   cpu                      = var.cpu_unit
   memory                   = var.memory
-  container_definitions    = data.template_file.main.rendered
+  container_definitions    = <<TASK_DEFINITION
+[
+  {
+    "essential": true,
+    "image": "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest",
+    "name": "log_router",
+    "firelensConfiguration": {
+      "type": "fluentbit",
+      "options": {
+        "config-file-type": "file",
+        "config-file-value": "/fluent-bit/configs/parse-json.conf"
+      }
+    },
+    "logConfiguration": {
+      "logDriver": "awslogs",
+      "options": {
+        "awslogs-group": "${var.name}-firelens-container",
+        "awslogs-region": "${var.region}",
+        "awslogs-create-group": "true",
+        "awslogs-stream-prefix": "firelens"
+      }
+    },
+    "memoryReservation": 50
+  },
+  {
+    "essential": true,
+    "image": "${var.ecr_image_url}",
+    "name": "${var.name}",
+    "portMappings": [
+      {
+        "containerPort": ${var.port},
+        "hostPort": ${var.port}
+      }
+    ],
+    "logConfiguration": {
+      "logDriver":"awsfirelens",
+      "options": {
+        "Name": "es",
+        "Host": "${var.es_url}",
+        "Port": "443",
+        "Index": "${lower(var.name)}",
+        "Type": "${lower(var.name)}_type",
+        "Aws_Auth": "On",
+        "Aws_Region": "${var.region}",
+        "tls": "On"
+      }
+    },
+    "secrets": [
+      {
+        "name": "${var.secrets_name}",
+        "valueFrom": "${var.secrets_value_arn}"
+      }
+    ],
+    "environment": [
+      {
+        "name": "DATABASE_LOG_LEVEL",
+        "value": "${var.database_log_level}"
+      },
+      {
+        "name": "APP",
+        "value": "${var.name}"
+      },
+      {
+        "name": "LOG_LEVEL",
+        "value": "${var.log_level}"
+      },
+      {
+        "name": "PORT",
+        "value": "${var.port}"
+      },
+      {
+        "name": "NEW_RELIC_APP_NAME",
+        "value": "${var.name}"
+      }
+    ]
+  }
+]
+TASK_DEFINITION
 
   lifecycle {
     create_before_destroy = true
-  }
-}
-
-data "template_file" "main" {
-  template = file("${path.module}/task_definition.json")
-
-  vars = {
-    ecr_image_url      = var.ecr_image_url
-    name               = var.name
-    name_index_log     = lower(var.name)
-    port               = var.port
-    region             = var.region
-    secrets_name       = var.secrets_name
-    secrets_value_arn  = var.secrets_value_arn
-    database_log_level = var.database_log_level
-    log_level          = var.log_level
-    es_url             = var.es_url
   }
 }
 
