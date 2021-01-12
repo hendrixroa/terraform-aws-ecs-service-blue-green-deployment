@@ -69,7 +69,6 @@ resource "aws_ecs_task_definition" "main" {
       "options": {
         "awslogs-group": "${var.name}-firelens-container",
         "awslogs-region": "${var.region}",
-        "awslogs-create-group": "true",
         "awslogs-stream-prefix": "firelens"
       }
     },
@@ -133,6 +132,12 @@ TASK_DEFINITION
   lifecycle {
     create_before_destroy = true
   }
+}
+
+// Auxiliary logs
+resource "aws_cloudwatch_log_group" "main" {
+  name              = "${var.name}-firelens-container"
+  retention_in_days = 14
 }
 
 // AWS ELB Target Blue groups/Listener for Blue/Green Deployments 
