@@ -78,6 +78,7 @@ data "template_file" "main" {
 
 // Auxiliary logs
 resource "aws_cloudwatch_log_group" "main" {
+  count             = var.use_cloudwatch_logs ? 0 : 1
   name              = "${var.name}-firelens-container"
   retention_in_days = 14
 }
