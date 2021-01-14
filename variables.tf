@@ -147,3 +147,11 @@ variable "health_check_path" {
 variable "es_url" {
   description = "Elasticsearch url"
 }
+
+variable "use_cloudwatch_logs" {
+  default = false
+}
+
+variable "prefix_logs" {
+  default = "ecs"
+}
