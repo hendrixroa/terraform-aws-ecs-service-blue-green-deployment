@@ -1,28 +1,3 @@
-locals {
-  elasticsearch_logs_config = {
-    "logDriver" : "awsfirelens",
-    "options" : {
-      "Name" : "es",
-      "Host" : var.es_url,
-      "Port" : "443",
-      "Index" : lower(var.name),
-      "Type" : "${lower(var.name)}_type",
-      "Aws_Auth" : "On",
-      "Aws_Region" : var.region,
-      "tls" : "On"
-    }
-  }
-
-  cloudwatch_logs_config = {
-    "logDriver" : "awslogs",
-    "options" : {
-      "awslogs-region" : var.region,
-      "awslogs-group" : var.name,
-      "awslogs-stream-prefix" : var.prefix_logs
-    }
-  }
-}
-
 //  AWS ECS Service to run the task definition
 resource "aws_ecs_service" "main" {
   name                = var.name
@@ -76,74 +51,28 @@ resource "aws_ecs_task_definition" "main" {
   task_role_arn            = var.roleArn
   cpu                      = var.cpu_unit
   memory                   = var.memory
-  container_definitions    = <<TASK_DEFINITION
-[
-  {
-    "essential": true,
-    "image": "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest",
-    "name": "log_router",
-    "firelensConfiguration": {
-      "type": "fluentbit",
-      "options": {
-        "config-file-type": "file",
-        "config-file-value": "/fluent-bit/configs/parse-json.conf"
-      }
-    },
-    "logConfiguration": {
-      "logDriver": "awslogs",
-      "options": {
-        "awslogs-group": "${var.name}-firelens-container",
-        "awslogs-region": "${var.region}",
-        "awslogs-stream-prefix": "firelens"
-      }
-    },
-    "memoryReservation": 50
-  },
-  {
-    "essential": true,
-    "image": "${var.ecr_image_url}",
-    "name": "${var.name}",
-    "portMappings": [
-      {
-        "containerPort": ${var.port},
-        "hostPort": ${var.port}
-      }
-    ],
-    "logConfiguration": ${var.use_cloudwatch_logs ? local.cloudwatch_logs_config : local.elasticsearch_logs_config},
-    "secrets": [
-      {
-        "name": "${var.secrets_name}",
-        "valueFrom": "${var.secrets_value_arn}"
-      }
-    ],
-    "environment": [
-      {
-        "name": "DATABASE_LOG_LEVEL",
-        "value": "${var.database_log_level}"
-      },
-      {
-        "name": "APP",
-        "value": "${var.name}"
-      },
-      {
-        "name": "LOG_LEVEL",
-        "value": "${var.log_level}"
-      },
-      {
-        "name": "PORT",
-        "value": "${var.port}"
-      },
-      {
-        "name": "NEW_RELIC_APP_NAME",
-        "value": "${var.name}"
-      }
-    ]
-  }
-]
-TASK_DEFINITION
+  container_definitions    = data.template_file.main.rendered
 
   lifecycle {
     create_before_destroy = true
+  }
+}
+
+data "template_file" "main" {
+  template = file("${path.module}/task_definition_${var.use_cloudwatch_logs ? "cloudwatch" : "elasticsearch"}.json")
+
+  vars = {
+    ecr_image_url      = var.ecr_image_url
+    name               = var.name
+    name_index_log     = lower(var.name)
+    port               = var.port
+    region             = var.region
+    secrets_name       = var.secrets_name
+    secrets_value_arn  = var.secrets_value_arn
+    database_log_level = var.database_log_level
+    log_level          = var.log_level
+    es_url             = var.es_url
+    prefix_logs        = var.prefix_logs
   }
 }
 
@@ -270,7 +199,7 @@ resource "aws_codedeploy_deployment_group" "main" {
     target_group_pair_info {
       prod_traffic_route {
         listener_arns = [
-        aws_lb_listener.main_blue_green.arn]
+          aws_lb_listener.main_blue_green.arn]
       }
 
       target_group {
@@ -283,7 +212,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 
       test_traffic_route {
         listener_arns = [
-        aws_lb_listener.main_test_blue_green.arn]
+          aws_lb_listener.main_test_blue_green.arn]
       }
     }
   }
@@ -381,7 +310,7 @@ resource "aws_appautoscaling_policy" "memory" {
   }
 
   depends_on = [
-  aws_appautoscaling_target.main]
+    aws_appautoscaling_target.main]
 
   lifecycle {
     create_before_destroy = true

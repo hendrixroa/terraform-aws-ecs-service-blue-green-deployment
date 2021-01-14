@@ -1,0 +1,45 @@
+[
+  {
+    "essential": true,
+    "image": "${ecr_image_url}",
+    "name": "${name}",
+    "portMappings": [
+      {
+        "containerPort": ${port},
+      "hostPort": ${port}
+    }
+    ],
+    "logConfiguration": {
+      "logDriver" : "awslogs",
+      "options" : {
+        "awslogs-region" : "${region}",
+        "awslogs-group" : "${name}",
+        "awslogs-stream-prefix" : "${prefix_logs}"
+      }
+    },
+    "secrets": [
+      {
+        "name": "${secrets_name}",
+        "valueFrom": "${secrets_value_arn}"
+      }
+    ],
+    "environment": [
+      {
+        "name": "DATABASE_LOG_LEVEL",
+        "value": "${database_log_level}"
+      },
+      {
+        "name": "APP",
+        "value": "${name}"
+      },
+      {
+        "name": "LOG_LEVEL",
+        "value": "${log_level}"
+      },
+      {
+        "name": "PORT",
+        "value": "${port}"
+      }
+    ]
+  }
+]
