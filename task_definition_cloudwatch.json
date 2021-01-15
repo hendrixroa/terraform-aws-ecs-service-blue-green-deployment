@@ -39,6 +39,10 @@
       {
         "name": "PORT",
         "value": "${port}"
+      },
+      {
+        "name": "NEW_RELIC_APP_NAME",
+        "value": "${name}"
       }
     ]
   }
