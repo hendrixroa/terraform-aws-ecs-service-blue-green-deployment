@@ -1,10 +1,11 @@
 //  AWS ECS Service to run the task definition
 resource "aws_ecs_service" "main" {
-  name                = var.name
-  cluster             = var.cluster
-  task_definition     = aws_ecs_task_definition.main.arn
-  scheduling_strategy = "REPLICA"
-  desired_count       = var.service_count
+  name                 = var.name
+  cluster              = var.cluster
+  task_definition      = aws_ecs_task_definition.main.arn
+  scheduling_strategy  = "REPLICA"
+  desired_count        = var.service_count
+  force_new_deployment = true
 
   network_configuration {
     security_groups  = var.security_groups
@@ -23,8 +24,6 @@ resource "aws_ecs_service" "main" {
   ]
 
   lifecycle {
-    create_before_destroy = true
-
     ignore_changes = [
       load_balancer,
       desired_count,
@@ -52,10 +51,6 @@ resource "aws_ecs_task_definition" "main" {
   cpu                      = var.cpu_unit
   memory                   = var.memory
   container_definitions    = data.template_file.main.rendered
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 data "template_file" "main" {
@@ -96,10 +91,6 @@ resource "aws_lb_target_group" "blue" {
   protocol    = "TCP"
   target_type = "ip"
   vpc_id      = var.vpc_id
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 // AWS ELB Target Green groups/Listener for Blue/Green Deployments
@@ -109,10 +100,6 @@ resource "aws_lb_target_group" "green" {
   protocol    = "TCP"
   target_type = "ip"
   vpc_id      = var.vpc_id
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 // AWS ELB Listener port application to forward network load balancer
@@ -129,8 +116,7 @@ resource "aws_lb_listener" "main_blue_green" {
   }
 
   lifecycle {
-    create_before_destroy = true
-    ignore_changes        = [default_action]
+    ignore_changes = [default_action]
   }
 }
 
@@ -148,8 +134,7 @@ resource "aws_lb_listener" "main_test_blue_green" {
   }
 
   lifecycle {
-    create_before_destroy = true
-    ignore_changes        = [default_action]
+    ignore_changes = [default_action]
   }
 }
 
@@ -200,7 +185,7 @@ resource "aws_codedeploy_deployment_group" "main" {
     target_group_pair_info {
       prod_traffic_route {
         listener_arns = [
-          aws_lb_listener.main_blue_green.arn]
+        aws_lb_listener.main_blue_green.arn]
       }
 
       target_group {
@@ -213,7 +198,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 
       test_traffic_route {
         listener_arns = [
-          aws_lb_listener.main_test_blue_green.arn]
+        aws_lb_listener.main_test_blue_green.arn]
       }
     }
   }
@@ -259,8 +244,6 @@ resource "aws_appautoscaling_target" "main" {
   max_capacity       = var.max_scale
 
   lifecycle {
-    create_before_destroy = true
-
     ignore_changes = [
       role_arn,
     ]
@@ -286,10 +269,6 @@ resource "aws_appautoscaling_policy" "cpu" {
   }
 
   depends_on = [aws_appautoscaling_target.main]
-
-  lifecycle {
-    create_before_destroy = true
-  }
 }
 
 // AWS Autoscaling policy to scale using memory allocation
@@ -311,9 +290,5 @@ resource "aws_appautoscaling_policy" "memory" {
   }
 
   depends_on = [
-    aws_appautoscaling_target.main]
-
-  lifecycle {
-    create_before_destroy = true
-  }
+  aws_appautoscaling_target.main]
 }
