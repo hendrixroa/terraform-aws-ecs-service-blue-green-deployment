@@ -17,33 +17,6 @@
         "awslogs-stream-prefix" : "${prefix_logs}"
       }
     },
-    "secrets": [
-      {
-        "name": "${secrets_name}",
-        "valueFrom": "${secrets_value_arn}"
-      }
-    ],
-    "environment": [
-      {
-        "name": "DATABASE_LOG_LEVEL",
-        "value": "${database_log_level}"
-      },
-      {
-        "name": "APP",
-        "value": "${name}"
-      },
-      {
-        "name": "LOG_LEVEL",
-        "value": "${log_level}"
-      },
-      {
-        "name": "PORT",
-        "value": "${port}"
-      },
-      {
-        "name": "NEW_RELIC_APP_NAME",
-        "value": "${name}"
-      }
-    ]
+    "environment": ${environment}
   }
 ]

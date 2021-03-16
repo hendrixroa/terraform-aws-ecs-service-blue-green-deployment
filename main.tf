@@ -62,13 +62,37 @@ data "template_file" "main" {
     name_index_log     = lower(var.name)
     port               = var.port
     region             = var.region
-    secrets_name       = var.secrets_name
-    secrets_value_arn  = var.secrets_value_arn
+    environment        = jsonencode(concat(local.main_environment, var.environment_list))
     database_log_level = var.database_log_level
     log_level          = var.log_level
     es_url             = var.es_url
     prefix_logs        = var.prefix_logs
   }
+}
+
+locals {
+  main_environment = [
+    {
+      name = "DATABASE_LOG_LEVEL",
+      value = var.database_log_level
+    },
+    {
+      name = "APP",
+      value = var.name
+    },
+    {
+      name = "LOG_LEVEL",
+      value = var.log_level
+    },
+    {
+      name = "PORT",
+      value = var.port
+    },
+    {
+      name = "NEW_RELIC_APP_NAME",
+      value = var.name
+    }
+  ]
 }
 
 // Auxiliary logs

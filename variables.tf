@@ -112,15 +112,6 @@ variable "sns_topic_arn" {
   description = "Sns topic to trigger status into slack channel"
 }
 
-variable "secrets_name" {
-  description = "Secrets name for ecs task"
-}
-
-variable "secrets_value_arn" {
-  description = "Secrets values for ecs task"
-  type        = string
-}
-
 variable "ecr_image_url" {
   description = "ECR docker image"
 }
@@ -154,4 +145,8 @@ variable "use_cloudwatch_logs" {
 
 variable "prefix_logs" {
   default = "ecs"
+}
+
+variable "environment_list" {
+  description = "Environment variables in map-list format. eg: [{ name='foo', value='bar' }]"
 }
