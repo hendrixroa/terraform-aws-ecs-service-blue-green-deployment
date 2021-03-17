@@ -71,14 +71,15 @@ resource "aws_ecs_task_definition" "main" {
       portMappings = [
         {
           containerPort = var.port
-          hostPort      = var.port
+          hostPort      = var.port,
+          protocol      = "tcp"
         }
       ]
       logConfiguration = {
         logDriver = var.use_cloudwatch_logs ? "awsfirelens" : "awslogs"
-        options   = var.use_cloudwatch_logs ? jsonencode(local.cloudwatch_logs_options) : jsonencode(local.firelens_logs_options)
+        options   = var.use_cloudwatch_logs ? local.cloudwatch_logs_options : local.firelens_logs_options
       }
-      environment = jsonencode(concat(local.main_environment, var.environment_list))
+      environment = concat(local.main_environment, var.environment_list)
     }
   ])
 }
@@ -99,7 +100,7 @@ locals {
     },
     {
       name  = "PORT"
-      value = var.port
+      value = tostring(var.port)
     },
     {
       name  = "NEW_RELIC_APP_NAME"
@@ -342,5 +343,6 @@ resource "aws_appautoscaling_policy" "memory" {
   }
 
   depends_on = [
-  aws_appautoscaling_target.main]
+    aws_appautoscaling_target.main
+  ]
 }
