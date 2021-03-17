@@ -86,7 +86,7 @@ locals {
     },
     {
       name = "PORT",
-      value = var.port
+      value = "${var.port}"
     },
     {
       name = "NEW_RELIC_APP_NAME",
