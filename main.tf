@@ -79,7 +79,7 @@ resource "aws_ecs_task_definition" "main" {
             "logDriver" : ${var.use_cloudwatch_logs ? "awsfirelens" : "awslogs"},
             "options" : ${var.use_cloudwatch_logs ? jsonencode(local.cloudwatch_logs_options) : jsonencode(local.firelens_logs_options)}
         },
-        "environment": ${environment}
+        "environment": ${jsonencode(concat(local.main_environment, var.environment_list))}
     }
 ]
 TASK_DEFINITION
