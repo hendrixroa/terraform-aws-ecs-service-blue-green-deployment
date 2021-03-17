@@ -6,8 +6,8 @@
     "portMappings": [
       {
         "containerPort": ${port},
-      "hostPort": ${port}
-    }
+        "hostPort": ${port}
+      }
     ],
     "logConfiguration": {
       "logDriver" : "awslogs",

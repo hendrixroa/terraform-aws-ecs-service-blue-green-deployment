@@ -1,6 +1,5 @@
 variable "port" {
   description = "Port number exposed by container"
-  default     = ""
 }
 
 variable "name" {
