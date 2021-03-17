@@ -76,7 +76,7 @@ resource "aws_ecs_task_definition" "main" {
         }
       ]
       logConfiguration = {
-        logDriver = var.use_cloudwatch_logs ? "awsfirelens" : "awslogs"
+        logDriver = var.use_cloudwatch_logs ? "awslogs" : "awsfirelens"
         options   = var.use_cloudwatch_logs ? local.cloudwatch_logs_options : local.firelens_logs_options
       }
       environment = concat(local.main_environment, var.environment_list)
