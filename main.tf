@@ -50,77 +50,75 @@ resource "aws_ecs_task_definition" "main" {
   task_role_arn            = var.roleArn
   cpu                      = var.cpu_unit
   memory                   = var.memory
-  container_definitions    = <<TASK_DEFINITION
-[
+  container_definitions = jsonencode([
     {
-        "essential": true,
-        "image": "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest",
-        "name": "log_router",
-        "firelensConfiguration": {
-            "type": "fluentbit",
-            "options": {
-                "config-file-type": "file",
-                "config-file-value": "/fluent-bit/configs/parse-json.conf"
-            }
-        },
-        "memoryReservation": 50
+      essential = true,
+      image     = "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest"
+      name      = "log_router"
+      firelensConfiguration = {
+        type = "fluentbit"
+        options = {
+          config-file-type  = "file"
+          config-file-value = "/fluent-bit/configs/parse-json.conf"
+        }
+      }
+      memoryReservation = 50
     },
     {
-        "essential": true,
-        "image": "${var.ecr_image_url}",
-        "name": "${var.name}",
-        "portMappings": [
-            {
-                "containerPort": ${var.port},
-                "hostPort": ${var.port}
-            }
-        ],
-        "logConfiguration": {
-            "logDriver" : ${var.use_cloudwatch_logs ? "awsfirelens" : "awslogs"},
-            "options" : ${var.use_cloudwatch_logs ? jsonencode(local.cloudwatch_logs_options) : jsonencode(local.firelens_logs_options)}
-        },
-        "environment": ${jsonencode(concat(local.main_environment, var.environment_list))}
+      essential = true
+      image     = var.ecr_image_url
+      name      = var.name
+      portMappings = [
+        {
+          containerPort = var.port
+          hostPort      = var.port
+        }
+      ]
+      logConfiguration = {
+        logDriver = var.use_cloudwatch_logs ? "awsfirelens" : "awslogs"
+        options   = var.use_cloudwatch_logs ? jsonencode(local.cloudwatch_logs_options) : jsonencode(local.firelens_logs_options)
+      }
+      environment = jsonencode(concat(local.main_environment, var.environment_list))
     }
-]
-TASK_DEFINITION
+  ])
 }
 
 locals {
   main_environment = [
     {
-      name  = "DATABASE_LOG_LEVEL",
+      name  = "DATABASE_LOG_LEVEL"
       value = var.database_log_level
     },
     {
-      name  = "APP",
+      name  = "APP"
       value = var.name
     },
     {
-      name  = "LOG_LEVEL",
+      name  = "LOG_LEVEL"
       value = var.log_level
     },
     {
-      name  = "PORT",
+      name  = "PORT"
       value = var.port
     },
     {
-      name  = "NEW_RELIC_APP_NAME",
+      name  = "NEW_RELIC_APP_NAME"
       value = var.name
     }
   ]
   cloudwatch_logs_options = {
-    awslogs-region        = var.region,
-    awslogs-group         = var.name,
+    awslogs-region        = var.region
+    awslogs-group         = var.name
     awslogs-stream-prefix = var.prefix_logs
   }
   firelens_logs_options = {
-    Name       = "es",
-    Host       = var.es_url,
-    Port       = "443",
-    Index      = lower(var.name),
-    Type       = "${lower(var.name)}_type",
-    Aws_Auth   = "On",
-    Aws_Region = var.region,
+    Name       = "es"
+    Host       = var.es_url
+    Port       = "443"
+    Index      = lower(var.name)
+    Type       = "${lower(var.name)}_type"
+    Aws_Auth   = "On"
+    Aws_Region = var.region
     tls        = "On"
   }
 }
