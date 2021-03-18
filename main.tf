@@ -50,38 +50,7 @@ resource "aws_ecs_task_definition" "main" {
   task_role_arn            = var.roleArn
   cpu                      = var.cpu_unit
   memory                   = var.memory
-  container_definitions = jsonencode([
-    {
-      essential = true,
-      image     = "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest"
-      name      = "log_router"
-      firelensConfiguration = {
-        type = "fluentbit"
-        options = {
-          config-file-type  = "file"
-          config-file-value = "/fluent-bit/configs/parse-json.conf"
-        }
-      }
-      memoryReservation = 50
-    },
-    {
-      essential = true
-      image     = var.ecr_image_url
-      name      = var.name
-      portMappings = [
-        {
-          containerPort = var.port
-          hostPort      = var.port,
-          protocol      = "tcp"
-        }
-      ]
-      logConfiguration = {
-        logDriver = var.use_cloudwatch_logs ? "awslogs" : "awsfirelens"
-        options   = var.use_cloudwatch_logs ? local.cloudwatch_logs_options : local.firelens_logs_options
-      }
-      environment = concat(local.main_environment, var.environment_list)
-    }
-  ])
+  container_definitions = jsonencode( var.use_cloudwatch_logs ? local.mainContainerDefinition : concat(local.mainContainerDefinition, local.firelensConfigContainer))
 }
 
 locals {
@@ -122,6 +91,38 @@ locals {
     Aws_Region = var.region
     tls        = "On"
   }
+  firelensConfigContainer = {
+    essential = true,
+    image     = "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest"
+    name      = "log_router"
+    firelensConfiguration = {
+      type = "fluentbit"
+      options = {
+        config-file-type  = "file"
+        config-file-value = "/fluent-bit/configs/parse-json.conf"
+      }
+    }
+    memoryReservation = 50
+  }
+  mainContainerDefinition = [
+    {
+      essential = true
+      image     = var.ecr_image_url
+      name      = var.name
+      portMappings = [
+        {
+          containerPort = var.port
+          hostPort      = var.port,
+          protocol      = "tcp"
+        }
+      ]
+      logConfiguration = {
+        logDriver = var.use_cloudwatch_logs ? "awslogs" : "awsfirelens"
+        options   = var.use_cloudwatch_logs ? local.cloudwatch_logs_options : local.firelens_logs_options
+      }
+      environment = concat(local.main_environment, var.environment_list)
+    }
+  ]
 }
 
 // Auxiliary logs
