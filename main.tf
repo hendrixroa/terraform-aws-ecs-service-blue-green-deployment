@@ -1,8 +1,9 @@
 //  AWS ECS Service to run the task definition
 resource "aws_ecs_service" "main" {
+  count = 1
   name                 = var.name
   cluster              = var.cluster
-  task_definition      = aws_ecs_task_definition.main.arn
+  task_definition      = var.use_cloudwatch_logs ? aws_ecs_task_definition.main_cloudwatch[count.index].arn : aws_ecs_task_definition.main_elasticsearch_logs[count.index].arn
   scheduling_strategy  = "REPLICA"
   desired_count        = var.service_count
   force_new_deployment = true
@@ -41,8 +42,8 @@ resource "aws_ecs_service" "main" {
   }
 }
 
-// AWS ECS Task definition to run the container passed by name
-resource "aws_ecs_task_definition" "main" {
+resource "aws_ecs_task_definition" "main_cloudwatch" {
+  count = var.use_cloudwatch_logs ? 1 : 0
   family                   = "${var.name}-service"
   requires_compatibilities = ["FARGATE"]
   network_mode             = "awsvpc"
@@ -50,7 +51,19 @@ resource "aws_ecs_task_definition" "main" {
   task_role_arn            = var.roleArn
   cpu                      = var.cpu_unit
   memory                   = var.memory
-  container_definitions = jsonencode( var.use_cloudwatch_logs ? local.mainContainerDefinition : concat(local.mainContainerDefinition, local.firelensConfigContainer))
+  container_definitions    = jsonencode(local.mainContainerDefinition)
+}
+
+resource "aws_ecs_task_definition" "main_elasticsearch_logs" {
+  count = var.use_cloudwatch_logs ? 0 : 1
+  family                   = "${var.name}-service"
+  requires_compatibilities = ["FARGATE"]
+  network_mode             = "awsvpc"
+  execution_role_arn       = var.roleExecArn
+  task_role_arn            = var.roleArn
+  cpu                      = var.cpu_unit
+  memory                   = var.memory
+  container_definitions    = jsonencode(local.firelensContainerDefinition)
 }
 
 locals {
@@ -91,19 +104,6 @@ locals {
     Aws_Region = var.region
     tls        = "On"
   }
-  firelensConfigContainer = {
-    essential = true,
-    image     = "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest"
-    name      = "log_router"
-    firelensConfiguration = {
-      type = "fluentbit"
-      options = {
-        config-file-type  = "file"
-        config-file-value = "/fluent-bit/configs/parse-json.conf"
-      }
-    }
-    memoryReservation = 50
-  }
   mainContainerDefinition = [
     {
       essential = true
@@ -112,8 +112,38 @@ locals {
       portMappings = [
         {
           containerPort = var.port
-          hostPort      = var.port,
-          protocol      = "tcp"
+          hostPort      = var.port
+        }
+      ]
+      logConfiguration = {
+        logDriver = var.use_cloudwatch_logs ? "awslogs" : "awsfirelens"
+        options   = var.use_cloudwatch_logs ? local.cloudwatch_logs_options : local.firelens_logs_options
+      }
+      environment = concat(local.main_environment, var.environment_list)
+    }
+  ]
+  firelensContainerDefinition = [
+    {
+      essential = true
+      image     = "906394416424.dkr.ecr.us-east-1.amazonaws.com/aws-for-fluent-bit:latest"
+      name      = "log_router"
+      firelensConfiguration = {
+        type = "fluentbit"
+        options = {
+          config-file-type  = "file"
+          config-file-value = "/fluent-bit/configs/parse-json.conf"
+        }
+      }
+      memoryReservation = 50
+    },
+    {
+      essential = true
+      image     = var.ecr_image_url
+      name      = var.name
+      portMappings = [
+        {
+          containerPort = var.port
+          hostPort      = var.port
         }
       ]
       logConfiguration = {
@@ -138,7 +168,7 @@ resource "aws_cloudwatch_log_group" "main_app" {
   retention_in_days = 14
 }
 
-// AWS ELB Target Blue groups/Listener for Blue/Green Deployments 
+// AWS ELB Target Blue groups/Listener for Blue/Green Deployments
 resource "aws_lb_target_group" "blue" {
   name        = "${var.name}-blue"
   port        = 80
@@ -204,6 +234,7 @@ resource "aws_codedeploy_app" "main" {
 
 // AWS Codedeploy Group for each codedeploy app created
 resource "aws_codedeploy_deployment_group" "main" {
+  count = 1
   app_name               = aws_codedeploy_app.main.name
   deployment_config_name = "CodeDeployDefault.ECSAllAtOnce"
   deployment_group_name  = "deployment-group-${var.name}"
@@ -232,14 +263,14 @@ resource "aws_codedeploy_deployment_group" "main" {
 
   ecs_service {
     cluster_name = var.cluster
-    service_name = aws_ecs_service.main.name
+    service_name = aws_ecs_service.main[count.index].name
   }
 
   load_balancer_info {
     target_group_pair_info {
       prod_traffic_route {
         listener_arns = [
-        aws_lb_listener.main_blue_green.arn]
+          aws_lb_listener.main_blue_green.arn]
       }
 
       target_group {
@@ -252,7 +283,7 @@ resource "aws_codedeploy_deployment_group" "main" {
 
       test_traffic_route {
         listener_arns = [
-        aws_lb_listener.main_test_blue_green.arn]
+          aws_lb_listener.main_test_blue_green.arn]
       }
     }
   }
@@ -290,8 +321,9 @@ data "external" "commit_message" {
 
 // AWS Autoscaling target to linked the ecs cluster and service
 resource "aws_appautoscaling_target" "main" {
+  count = 1
   service_namespace  = "ecs"
-  resource_id        = "service/${var.cluster}/${aws_ecs_service.main.name}"
+  resource_id        = "service/${var.cluster}/${aws_ecs_service.main[count.index].name}"
   scalable_dimension = "ecs:service:DesiredCount"
   role_arn           = var.auto_scale_role
   min_capacity       = var.min_scale
@@ -306,10 +338,11 @@ resource "aws_appautoscaling_target" "main" {
 
 // AWS Autoscaling policy to scale using cpu allocation
 resource "aws_appautoscaling_policy" "cpu" {
+  count = 1
   name               = "ecs_scale_cpu"
-  resource_id        = aws_appautoscaling_target.main.resource_id
-  scalable_dimension = aws_appautoscaling_target.main.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.main.service_namespace
+  resource_id        = aws_appautoscaling_target.main[count.index].resource_id
+  scalable_dimension = aws_appautoscaling_target.main[count.index].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.main[count.index].service_namespace
   policy_type        = "TargetTrackingScaling"
 
   target_tracking_scaling_policy_configuration {
@@ -327,10 +360,11 @@ resource "aws_appautoscaling_policy" "cpu" {
 
 // AWS Autoscaling policy to scale using memory allocation
 resource "aws_appautoscaling_policy" "memory" {
+  count = 1
   name               = "ecs_scale_memory"
-  resource_id        = aws_appautoscaling_target.main.resource_id
-  scalable_dimension = aws_appautoscaling_target.main.scalable_dimension
-  service_namespace  = aws_appautoscaling_target.main.service_namespace
+  resource_id        = aws_appautoscaling_target.main[count.index].resource_id
+  scalable_dimension = aws_appautoscaling_target.main[count.index].scalable_dimension
+  service_namespace  = aws_appautoscaling_target.main[count.index].service_namespace
   policy_type        = "TargetTrackingScaling"
 
   target_tracking_scaling_policy_configuration {
