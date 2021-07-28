@@ -136,6 +136,7 @@ variable "health_check_path" {
 
 variable "es_url" {
   description = "Elasticsearch url"
+  default = "disabled"
 }
 
 variable "use_cloudwatch_logs" {
